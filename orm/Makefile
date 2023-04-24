@@ -5,3 +5,6 @@ codegen:
 	(cd internal; buf generate --template buf.proto.gen.yaml)
 	# generate go code
 	(cd internal; buf generate)
+
+test:
+	go test -v ./...
