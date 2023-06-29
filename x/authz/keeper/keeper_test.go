@@ -193,7 +193,7 @@ func (s *TestSuite) TestDispatchAction() {
 			func() sdk.Context {
 				// remove any existing authorizations
 				err := s.authzKeeper.DeleteGrant(s.ctx, granteeAddr, granterAddr, bankSendAuthMsgType)
-				require.NoError(err)
+				require.Error(err)
 
 				return s.ctx
 			},
