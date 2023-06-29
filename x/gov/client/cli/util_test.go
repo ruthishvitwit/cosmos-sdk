@@ -42,7 +42,7 @@ func TestParseSubmitLegacyProposal(t *testing.T) {
 
 	// nonexistent json
 	err := fs.Set(FlagProposal, "fileDoesNotExist")
-	require.Error(t, err)
+	require.NoError(t, err)
 	_, err = parseSubmitLegacyProposal(fs)
 	require.Error(t, err)
 

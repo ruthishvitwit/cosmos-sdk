@@ -699,7 +699,7 @@ func TestABCI_InvalidTransaction(t *testing.T) {
 	{
 		txBuilder := suite.txConfig.NewTxBuilder()
 		err := txBuilder.SetMsgs(&testdata.MsgCreateDog{})
-		require.Error(t, err)
+		require.NoError(t, err)
 		tx := txBuilder.GetTx()
 
 		_, _, err = suite.baseApp.SimDeliver(suite.txConfig.TxEncoder(), tx)
