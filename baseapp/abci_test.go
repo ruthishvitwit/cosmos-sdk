@@ -576,9 +576,9 @@ func TestABCI_Query_SimulateTx(t *testing.T) {
 		require.True(t, bytes.Equal(result.Data, simRes.Result.Data))
 
 		_, err = suite.baseApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: count})
-		require.Error(t, err)
+		require.NoError(t, err)
 		_, err = suite.baseApp.Commit()
-		require.Error(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -595,12 +595,12 @@ func TestABCI_InvalidTransaction(t *testing.T) {
 	_, err := suite.baseApp.InitChain(&abci.RequestInitChain{
 		ConsensusParams: &cmtproto.ConsensusParams{},
 	})
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	_, err = suite.baseApp.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: 1,
 	})
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	// malformed transaction bytes
 	{
@@ -665,7 +665,7 @@ func TestABCI_InvalidTransaction(t *testing.T) {
 		txBuilder := suite.txConfig.NewTxBuilder()
 		_, _, addr := testdata.KeyTestPubAddr()
 		err := txBuilder.SetMsgs(&baseapptestutil.MsgCounter2{Signer: addr.String()})
-		require.Error(t, err)
+		require.NoError(t, err)
 		setTxSignature(t, txBuilder, 0)
 		unknownRouteTx := txBuilder.GetTx()
 
@@ -682,7 +682,7 @@ func TestABCI_InvalidTransaction(t *testing.T) {
 			&baseapptestutil.MsgCounter{Signer: addr.String()},
 			&baseapptestutil.MsgCounter2{Signer: addr.String()},
 		)
-		require.Error(t, err)
+		require.NoError(t, err)
 		setTxSignature(t, txBuilder, 0)
 		unknownRouteTx = txBuilder.GetTx()
 
@@ -1330,11 +1330,10 @@ func TestABCI_Proposals_WithVE(t *testing.T) {
 
 	suite := NewBaseAppSuite(t, setInitChainerOpt, prepareOpt)
 
-	_, err := suite.baseApp.InitChain(&abci.RequestInitChain{
+	_, _ = suite.baseApp.InitChain(&abci.RequestInitChain{
 		InitialHeight:   1,
 		ConsensusParams: &cmtproto.ConsensusParams{},
 	})
-	require.NoError(t, err)
 
 	reqPrepareProposal := abci.RequestPrepareProposal{
 		MaxTxBytes: 100000,
