@@ -82,7 +82,8 @@ func initFixture(t testing.TB) *fixture {
 		runtime.NewKVStoreService(keys[authtypes.StoreKey]),
 		authtypes.ProtoBaseAccount,
 		maccPerms,
-		addresscodec.NewBech32Codec("cosmos"),
+		addresscodec.NewBech32Codec(sdk.Bech32MainPrefix),
+		addresscodec.NewBech32Codec(sdk.Bech32PrefixValAddr),
 		sdk.Bech32MainPrefix,
 		authority.String(),
 	)
@@ -197,7 +198,8 @@ func TestMsgWithdrawDelegatorReward(t *testing.T) {
 	validator, issuedShares := validator.AddTokensFromDel(delTokens)
 	delegation := stakingtypes.NewDelegation(delAddr, validator.GetOperator(), issuedShares)
 	require.NoError(t, f.stakingKeeper.SetDelegation(f.sdkCtx, delegation))
-	require.NoError(t, f.distrKeeper.DelegatorStartingInfo.Set(f.sdkCtx, collections.Join(validator.GetOperator(), delAddr), distrtypes.NewDelegatorStartingInfo(2, math.LegacyOneDec(), 20)))
+	err = f.distrKeeper.DelegatorStartingInfo.Set(f.sdkCtx, collections.Join(validator.GetOperator(), delAddr), distrtypes.NewDelegatorStartingInfo(2, math.LegacyOneDec(), 20))
+	require.NoError(t, err)
 	// setup validator rewards
 	decCoins := sdk.DecCoins{sdk.NewDecCoinFromDec(sdk.DefaultBondDenom, math.LegacyOneDec())}
 	historicalRewards := distrtypes.NewValidatorHistoricalRewards(decCoins, 2)
@@ -895,10 +897,9 @@ func TestMsgDepositValidatorRewardsPool(t *testing.T) {
 
 	// mint a non-staking token and send to an account
 	amt := sdk.NewCoins(sdk.NewInt64Coin("foo", 500))
-	err = f.bankKeeper.MintCoins(f.sdkCtx, distrtypes.ModuleName, amt)
-	require.NoError(t, err)
-	err = f.bankKeeper.SendCoinsFromModuleToAccount(f.sdkCtx, distrtypes.ModuleName, addr, amt)
-	require.NoError(t, err)
+	require.NoError(t, f.bankKeeper.MintCoins(f.sdkCtx, distrtypes.ModuleName, amt))
+	require.NoError(t, f.bankKeeper.SendCoinsFromModuleToAccount(f.sdkCtx, distrtypes.ModuleName, addr, amt))
+
 	bondDenom, err := f.stakingKeeper.BondDenom(f.sdkCtx)
 	require.NoError(t, err)
 
