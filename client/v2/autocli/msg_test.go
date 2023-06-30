@@ -135,7 +135,7 @@ func TestMsgOptionsError(t *testing.T) {
 		"--u64", "8",
 	)
 
-	assert.Assert(t, strings.Contains(conn.errorOut.String(), "requires at least 3 arg"))
+	assert.Assert(t, strings.Contains(conn.errorOut.String(), "requires at least 3 arg(s), only received 1"))
 
 	conn = testExecCommon(t, buildModuleMsgCommand,
 		"send", "5", "6", `{"denom":"foo","amount":"1"}`,
