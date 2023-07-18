@@ -188,7 +188,7 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx context.Context) (updates 
 		}
 
 		// fetch the old power bytes
-		valAddrStr, err := k.authKeeper.ValidatorAddressCodec().BytesToString(valAddr)
+		valAddrStr, err := k.validatorAddressCodec.BytesToString(valAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -251,7 +251,7 @@ func (k Keeper) ApplyAndReturnValidatorSetUpdates(ctx context.Context) (updates 
 
 	// set total power on lookup index if there are any updates
 	if len(updates) > 0 {
-		if err = k.SetLastTotalPower(ctx, totalPower); err != nil {
+		if err = k.LastTotalPower.Set(ctx, totalPower); err != nil {
 			return nil, err
 		}
 	}
@@ -456,7 +456,7 @@ func (k Keeper) getLastValidatorsByAddr(ctx context.Context) (validatorsByAddr, 
 	for ; iterator.Valid(); iterator.Next() {
 		// extract the validator address from the key (prefix is 1-byte, addrLen is 1-byte)
 		valAddr := types.AddressFromLastValidatorPowerKey(iterator.Key())
-		valAddrStr, err := k.authKeeper.ValidatorAddressCodec().BytesToString(valAddr)
+		valAddrStr, err := k.validatorAddressCodec.BytesToString(valAddr)
 		if err != nil {
 			return nil, err
 		}

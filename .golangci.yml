@@ -10,6 +10,7 @@ run:
 linters:
   disable-all: true
   enable:
+    - errcheck
     - dogsled
     - exportloopref
     - goconst
@@ -127,7 +128,7 @@ linters-settings:
   gofumpt:
     extra-rules: true
   dogsled:
-    max-blank-identifiers: 5
+    max-blank-identifiers: 6
   maligned:
     suggest-new: true
   nolintlint:
