@@ -7,7 +7,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
-	"github.com/cosmos/cosmos-sdk/types/kv"
 )
 
 const (
@@ -51,23 +50,14 @@ const (
 
 var (
 	ParamsKey                           = collections.NewPrefix(0) // Prefix for params key
-	ValidatorSigningInfoKeyPrefix       = []byte{0x01}             // Prefix for signing info
+	ValidatorSigningInfoKeyPrefix       = collections.NewPrefix(1) // Prefix for signing info
 	ValidatorMissedBlockBitmapKeyPrefix = []byte{0x02}             // Prefix for missed block bitmap
-	AddrPubkeyRelationKeyPrefix         = []byte{0x03}             // Prefix for address-pubkey relation
+	AddrPubkeyRelationKeyPrefix         = collections.NewPrefix(3) // Prefix for address-pubkey relation
 )
 
 // ValidatorSigningInfoKey - stored by *Consensus* address (not operator address)
 func ValidatorSigningInfoKey(v sdk.ConsAddress) []byte {
 	return append(ValidatorSigningInfoKeyPrefix, address.MustLengthPrefix(v.Bytes())...)
-}
-
-// ValidatorSigningInfoAddress - extract the address from a validator signing info key
-func ValidatorSigningInfoAddress(key []byte) (v sdk.ConsAddress) {
-	// Remove prefix and address length.
-	kv.AssertKeyAtLeastLength(key, 3)
-	addr := key[2:]
-
-	return sdk.ConsAddress(addr)
 }
 
 // ValidatorMissedBlockBitmapPrefixKey returns the key prefix for a validator's
@@ -83,9 +73,4 @@ func ValidatorMissedBlockBitmapKey(v sdk.ConsAddress, chunkIndex int64) []byte {
 	binary.LittleEndian.PutUint64(bz, uint64(chunkIndex))
 
 	return append(ValidatorMissedBlockBitmapPrefixKey(v), bz...)
-}
-
-// AddrPubkeyRelationKey gets pubkey relation key used to get the pubkey from the address
-func AddrPubkeyRelationKey(addr []byte) []byte {
-	return append(AddrPubkeyRelationKeyPrefix, address.MustLengthPrefix(addr)...)
 }

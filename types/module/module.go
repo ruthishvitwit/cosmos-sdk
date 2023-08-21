@@ -366,8 +366,12 @@ func (m *Manager) SetOrderEndBlockers(moduleNames ...string) {
 	m.assertNoForgottenModules("SetOrderEndBlockers", moduleNames,
 		func(moduleName string) bool {
 			module := m.Modules[moduleName]
-			_, hasEndBlock := module.(HasABCIEndblock)
-			return !hasEndBlock
+			if _, hasEndBlock := module.(appmodule.HasEndBlocker); hasEndBlock {
+				return !hasEndBlock
+			}
+
+			_, hasABCIEndBlock := module.(HasABCIEndblock)
+			return !hasABCIEndBlock
 		})
 	m.OrderEndBlockers = moduleNames
 }
@@ -558,9 +562,9 @@ func (m *Manager) checkModulesExists(moduleName []string) error {
 	return nil
 }
 
-// assertNoForgottenModules checks that we didn't forget any modules in the
-// SetOrder* functions.
-// `pass` is a closure which allows one to omit modules from `moduleNames`. If you provide non-nil `pass` and it returns true, the module would not be subject of the assertion.
+// assertNoForgottenModules checks that we didn't forget any modules in the SetOrder* functions.
+// `pass` is a closure which allows one to omit modules from `moduleNames`.
+// If you provide non-nil `pass` and it returns true, the module would not be subject of the assertion.
 func (m *Manager) assertNoForgottenModules(setOrderFnName string, moduleNames []string, pass func(moduleName string) bool) {
 	ms := make(map[string]bool)
 	for _, m := range moduleNames {
@@ -692,17 +696,32 @@ func (m Manager) RunMigrations(ctx context.Context, cfg Configurator, fromVM Ver
 	return updatedVM, nil
 }
 
-// BeginBlock performs begin block functionality for all modules. It creates a
-// child context with an event manager to aggregate events emitted from all
+// RunMigrationBeginBlock performs begin block functionality for upgrade module.
+// It takes the current context as a parameter and returns a boolean value
+// indicating whether the migration was executed or not and an error if fails.
+func (m *Manager) RunMigrationBeginBlock(ctx sdk.Context) (bool, error) {
+	for _, moduleName := range m.OrderBeginBlockers {
+		if mod, ok := m.Modules[moduleName].(appmodule.HasBeginBlocker); ok {
+			if _, ok := mod.(appmodule.UpgradeModule); ok {
+				err := mod.BeginBlock(ctx)
+				return err == nil, err
+			}
+		}
+	}
+	return false, nil
+}
+
+// BeginBlock performs begin block functionality for non-upgrade modules. It creates a
+// child context with an event manager to aggregate events emitted from non-upgrade
 // modules.
 func (m *Manager) BeginBlock(ctx sdk.Context) (sdk.BeginBlock, error) {
 	ctx = ctx.WithEventManager(sdk.NewEventManager())
-
 	for _, moduleName := range m.OrderBeginBlockers {
 		if module, ok := m.Modules[moduleName].(appmodule.HasBeginBlocker); ok {
-			err := module.BeginBlock(ctx)
-			if err != nil {
-				return sdk.BeginBlock{}, err
+			if _, ok := module.(appmodule.UpgradeModule); !ok {
+				if err := module.BeginBlock(ctx); err != nil {
+					return sdk.BeginBlock{}, err
+				}
 			}
 		}
 	}
