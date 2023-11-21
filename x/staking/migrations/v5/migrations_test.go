@@ -12,16 +12,15 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
+	"cosmossdk.io/x/staking"
+	v5 "cosmossdk.io/x/staking/migrations/v5"
+	stakingtypes "cosmossdk.io/x/staking/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	"github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
-	"github.com/cosmos/cosmos-sdk/x/staking"
-	v2 "github.com/cosmos/cosmos-sdk/x/staking/migrations/v2"
-	v5 "github.com/cosmos/cosmos-sdk/x/staking/migrations/v5"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func TestHistoricalKeysMigration(t *testing.T) {
@@ -52,7 +51,7 @@ func TestHistoricalKeysMigration(t *testing.T) {
 	cdc := moduletestutil.MakeTestEncodingConfig().Codec
 	for height := range testCases {
 		testCases[height] = testCase{
-			oldKey:         v2.GetHistoricalInfoKey(height),
+			oldKey:         v5.GetLegacyHistoricalInfoKey(height),
 			newKey:         v5.GetHistoricalInfoKey(height),
 			historicalInfo: cdc.MustMarshal(createHistoricalInfo(height, "testChainID")),
 		}

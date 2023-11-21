@@ -14,10 +14,8 @@ import (
 	stakingmodulev1 "cosmossdk.io/api/cosmos/staking/module/v1"
 	"cosmossdk.io/core/address"
 	"cosmossdk.io/core/appmodule"
-	"cosmossdk.io/core/comet"
 	"cosmossdk.io/core/event"
 	"cosmossdk.io/core/genesis"
-	"cosmossdk.io/core/header"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
@@ -72,9 +70,8 @@ func init() {
 			ProvideMemoryStoreService,
 			ProvideTransientStoreService,
 			ProvideEventService,
-			ProvideHeaderInfoService,
-			ProvideCometInfoService,
 			ProvideBasicManager,
+			ProvideAppVersionModifier,
 			ProvideAddressCodec,
 		),
 		appmodule.Invoke(SetupAppBuilder),
@@ -85,7 +82,6 @@ func ProvideApp(interfaceRegistry codectypes.InterfaceRegistry) (
 	codec.Codec,
 	*codec.LegacyAmino,
 	*AppBuilder,
-	codec.ProtoCodecMarshaler,
 	*baseapp.MsgServiceRouter,
 	appmodule.AppModule,
 	protodesc.Resolver,
@@ -119,7 +115,7 @@ func ProvideApp(interfaceRegistry codectypes.InterfaceRegistry) (
 	}
 	appBuilder := &AppBuilder{app}
 
-	return cdc, amino, appBuilder, cdc, msgServiceRouter, appModule{app}, protoFiles, protoTypes, nil
+	return cdc, amino, appBuilder, msgServiceRouter, appModule{app}, protoFiles, protoTypes, nil
 }
 
 type AppInputs struct {
@@ -246,16 +242,12 @@ func ProvideEventService() event.Service {
 	return EventService{}
 }
 
-func ProvideCometInfoService() comet.BlockInfoService {
-	return cometInfoService{}
-}
-
-func ProvideHeaderInfoService(app *AppBuilder) header.Service {
-	return headerInfoService{}
-}
-
 func ProvideBasicManager(app *AppBuilder) module.BasicManager {
 	return app.app.basicManager
+}
+
+func ProvideAppVersionModifier(app *AppBuilder) baseapp.AppVersionModifier {
+	return app.app
 }
 
 type (

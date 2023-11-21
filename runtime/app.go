@@ -12,6 +12,7 @@ import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
+	authtx "cosmossdk.io/x/auth/tx"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -25,7 +26,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 )
 
 // App is a wrapper around BaseApp and ModuleManager that can be used in hybrid
@@ -114,6 +114,13 @@ func (a *App) Load(loadLatest bool) error {
 		a.ModuleManager.SetOrderExportGenesis(a.config.InitGenesis...)
 	}
 
+	if len(a.config.PreBlockers) != 0 {
+		a.ModuleManager.SetOrderPreBlockers(a.config.PreBlockers...)
+		if a.BaseApp.PreBlocker() == nil {
+			a.SetPreBlocker(a.PreBlocker)
+		}
+	}
+
 	if len(a.config.BeginBlockers) != 0 {
 		a.ModuleManager.SetOrderBeginBlockers(a.config.BeginBlockers...)
 		a.SetBeginBlocker(a.BeginBlocker)
@@ -145,6 +152,11 @@ func (a *App) Load(loadLatest bool) error {
 	}
 
 	return nil
+}
+
+// PreBlocker application updates every pre block
+func (a *App) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	return a.ModuleManager.PreBlock(ctx)
 }
 
 // BeginBlocker application updates every begin block

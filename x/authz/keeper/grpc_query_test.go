@@ -7,10 +7,11 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"cosmossdk.io/x/authz"
+	banktypes "cosmossdk.io/x/bank/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	"github.com/cosmos/cosmos-sdk/x/authz"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 func (suite *TestSuite) TestGRPCQueryAuthorization() {
@@ -261,6 +262,8 @@ func (suite *TestSuite) TestGRPCQueryGranteeGrants() {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		suite.Run(fmt.Sprintf("Case %s", tc.msg), func() {
 			tc.preRun()
 			result, err := queryClient.GranteeGrants(gocontext.Background(), &tc.request)
@@ -275,7 +278,7 @@ func (suite *TestSuite) TestGRPCQueryGranteeGrants() {
 }
 
 func (suite *TestSuite) createSendAuthorization(grantee, granter sdk.AccAddress) authz.Authorization {
-	exp := suite.ctx.BlockHeader().Time.Add(time.Hour)
+	exp := suite.ctx.HeaderInfo().Time.Add(time.Hour)
 	newCoins := sdk.NewCoins(sdk.NewInt64Coin("steak", 100))
 	authorization := &banktypes.SendAuthorization{SpendLimit: newCoins}
 	err := suite.authzKeeper.SaveGrant(suite.ctx, grantee, granter, authorization, &exp)
@@ -284,7 +287,7 @@ func (suite *TestSuite) createSendAuthorization(grantee, granter sdk.AccAddress)
 }
 
 func (suite *TestSuite) createSendAuthorizationWithAllowList(grantee, granter sdk.AccAddress) authz.Authorization {
-	exp := suite.ctx.BlockHeader().Time.Add(time.Hour)
+	exp := suite.ctx.HeaderInfo().Time.Add(time.Hour)
 	newCoins := sdk.NewCoins(sdk.NewInt64Coin("steak", 100))
 	authorization := &banktypes.SendAuthorization{SpendLimit: newCoins, AllowList: []string{suite.addrs[5].String()}}
 	err := suite.authzKeeper.SaveGrant(suite.ctx, grantee, granter, authorization, &exp)

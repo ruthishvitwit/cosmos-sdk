@@ -56,6 +56,44 @@ func (s *intTestSuite) TestNewIntFromBigInt() {
 	s.Require().NotEqual(r, i.BigInt())
 }
 
+func (s *intTestSuite) TestNewIntFromBigIntMut() {
+	im := math.NewIntFromBigIntMut(nil)
+	s.Require().True(im.IsNil())
+
+	r := big.NewInt(42)
+	im = math.NewIntFromBigIntMut(r)
+	s.Require().Equal(r, im.BigInt())
+
+	// Compare value of NewIntFromBigInt and NewIntFromBigIntMut
+	i := math.NewIntFromBigInt(r)
+	s.Require().Equal(i, im)
+
+	// modify r and ensure i doesn't change & im changes
+	r = r.SetInt64(100)
+	s.Require().NotEqual(r, i.BigInt())
+	s.Require().Equal(r, im.BigInt())
+}
+
+func (s *intTestSuite) TestConvertToBigIntMutative() {
+	r := big.NewInt(42)
+	i := math.NewIntFromBigInt(r)
+
+	// Compare value of BigInt & BigIntMut
+	s.Require().Equal(i.BigInt(), i.BigIntMut())
+
+	// Modify BigIntMut() pointer and ensure i.BigIntMut() & i.BigInt() change
+	p := i.BigIntMut()
+	p.SetInt64(50)
+	s.Require().Equal(big.NewInt(50), i.BigIntMut())
+	s.Require().Equal(big.NewInt(50), i.BigInt())
+
+	// Modify big.Int() pointer and ensure i.BigIntMut() & i.BigInt() don't change
+	p = i.BigInt()
+	p.SetInt64(60)
+	s.Require().NotEqual(big.NewInt(60), i.BigIntMut())
+	s.Require().NotEqual(big.NewInt(60), i.BigInt())
+}
+
 func (s *intTestSuite) TestIntPanic() {
 	// Max Int = 2^256-1 = 1.1579209e+77
 	// Min Int = -(2^256-1) = -1.1579209e+77
@@ -531,6 +569,7 @@ var sizeTests = []struct {
 	s    string
 	want int
 }{
+	{"", 1},
 	{"0", 1},
 	{"-0", 1},
 	{"-10", 3},
@@ -538,7 +577,24 @@ var sizeTests = []struct {
 	{"10000", 5},
 	{"100000", 6},
 	{"99999", 5},
+	{"9999999999", 10},
 	{"10000000000", 11},
+	{"99999999999", 11},
+	{"999999999999", 12},
+	{"9999999999999", 13},
+	{"99999999999999", 14},
+	{"999999999999999", 15},
+	{"1000000000000000", 16},
+	{"9999999999999999", 16},
+	{"99999999999999999", 17},
+	{"999999999999999999", 18},
+	{"-999999999999999999", 19},
+	{"9000000000000000000", 19},
+	{"-9999999999999990000", 20},
+	{"9999999999999990000", 19},
+	{"9999999999999999000", 19},
+	{"9999999999999999999", 19},
+	{"-9999999999999999999", 20},
 	{"18446744073709551616", 20},
 	{"18446744073709551618", 20},
 	{"184467440737095516181", 21},
@@ -565,6 +621,13 @@ var sizeTests = []struct {
 	{"10000000000000000000000000000000000000000000000000000000000000000000000000000", 77},
 	{"99999999999999999999999999999999999999999999999999999999999999999999999999999", 77},
 	{"110000000000000000000000000000000000000000000000000000000000000000000000000009", 78},
+}
+
+func TestNewIntFromString(t *testing.T) {
+	for _, st := range sizeTests {
+		ii, _ := math.NewIntFromString(st.s)
+		require.Equal(t, st.want, ii.Size(), "size mismatch for %q", st.s)
+	}
 }
 
 func BenchmarkIntSize(b *testing.B) {

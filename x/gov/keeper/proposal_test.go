@@ -2,18 +2,19 @@ package keeper_test
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"cosmossdk.io/collections"
+	"cosmossdk.io/x/gov/types"
+	v1 "cosmossdk.io/x/gov/types/v1"
+	"cosmossdk.io/x/gov/types/v1beta1"
 
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/gov/types"
-	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
-	"github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 )
 
 // TODO(tip): remove this
@@ -91,7 +92,7 @@ func (suite *KeeperTestSuite) TestActivateVotingPeriod() {
 
 		proposal, err = suite.govKeeper.Proposals.Get(suite.ctx, proposal.Id)
 		suite.Require().Nil(err)
-		suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.BlockHeader().Time))
+		suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.HeaderInfo().Time))
 
 		has, err := suite.govKeeper.ActiveProposalsQueue.Has(suite.ctx, collections.Join(*proposal.VotingEndTime, proposal.Id))
 		suite.Require().NoError(err)
@@ -120,7 +121,7 @@ func (suite *KeeperTestSuite) TestDeleteProposalInVotingPeriod() {
 
 		proposal, err = suite.govKeeper.Proposals.Get(suite.ctx, proposal.Id)
 		suite.Require().Nil(err)
-		suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.BlockHeader().Time))
+		suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.HeaderInfo().Time))
 
 		has, err := suite.govKeeper.ActiveProposalsQueue.Has(suite.ctx, collections.Join(*proposal.VotingEndTime, proposal.Id))
 		suite.Require().NoError(err)
@@ -201,7 +202,8 @@ func (suite *KeeperTestSuite) TestCancelProposal() {
 
 	proposal3, err = suite.govKeeper.Proposals.Get(suite.ctx, proposal3ID)
 	suite.Require().Nil(err)
-	suite.Require().True(proposal3.VotingStartTime.Equal(suite.ctx.BlockHeader().Time))
+	fmt.Println(suite.ctx.HeaderInfo().Time, proposal3.VotingStartTime)
+	suite.Require().True(proposal3.VotingStartTime.Equal(suite.ctx.HeaderInfo().Time))
 	// add vote
 	voteOptions := []*v1.WeightedVoteOption{{Option: v1.OptionYes, Weight: "1.0"}}
 	err = suite.govKeeper.AddVote(suite.ctx, proposal3ID, suite.addrs[0], voteOptions, "")
@@ -263,7 +265,7 @@ func (suite *KeeperTestSuite) TestCancelProposal() {
 
 				proposal, err = suite.govKeeper.Proposals.Get(suite.ctx, proposal.Id)
 				suite.Require().Nil(err)
-				suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.BlockHeader().Time))
+				suite.Require().True(proposal.VotingStartTime.Equal(suite.ctx.HeaderInfo().Time))
 
 				// add vote
 				voteOptions := []*v1.WeightedVoteOption{{Option: v1.OptionYes, Weight: "1.0"}}

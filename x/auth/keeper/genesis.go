@@ -1,15 +1,18 @@
 package keeper
 
 import (
+	"context"
+
+	"cosmossdk.io/x/auth/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 // InitGenesis - Init store state from genesis data
 //
 // CONTRACT: old coins from the FeeCollectionKeeper need to be transferred through
 // a genesis port script to the new fee collector account
-func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
+func (ak AccountKeeper) InitGenesis(ctx context.Context, data types.GenesisState) {
 	if err := ak.Params.Set(ctx, data.Params); err != nil {
 		panic(err)
 	}
@@ -35,7 +38,7 @@ func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data types.GenesisState) {
 }
 
 // ExportGenesis returns a GenesisState for a given context and keeper
-func (ak AccountKeeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
+func (ak AccountKeeper) ExportGenesis(ctx context.Context) *types.GenesisState {
 	params := ak.GetParams(ctx)
 
 	var genAccounts types.GenesisAccounts

@@ -23,9 +23,9 @@ import (
 
 // ProtoCodecMarshaler defines an interface for codecs that utilize Protobuf for both
 // binary and JSON encoding.
+// Deprecated: Use Codec instead.
 type ProtoCodecMarshaler interface {
 	Codec
-	InterfaceRegistry() types.InterfaceRegistry
 }
 
 // ProtoCodec defines a codec that utilizes Protobuf for both binary and JSON
@@ -34,10 +34,7 @@ type ProtoCodec struct {
 	interfaceRegistry types.InterfaceRegistry
 }
 
-var (
-	_ Codec               = &ProtoCodec{}
-	_ ProtoCodecMarshaler = &ProtoCodec{}
-)
+var _ Codec = (*ProtoCodec)(nil)
 
 // NewProtoCodec returns a reference to a new ProtoCodec
 func NewProtoCodec(interfaceRegistry types.InterfaceRegistry) *ProtoCodec {
@@ -348,7 +345,8 @@ type grpcProtoCodec struct {
 func (g grpcProtoCodec) Marshal(v interface{}) ([]byte, error) {
 	switch m := v.(type) {
 	case proto.Message:
-		return proto.Marshal(m)
+		protov2MarshalOpts := proto.MarshalOptions{Deterministic: true}
+		return protov2MarshalOpts.Marshal(m)
 	case gogoproto.Message:
 		return g.cdc.Marshal(m)
 	default:

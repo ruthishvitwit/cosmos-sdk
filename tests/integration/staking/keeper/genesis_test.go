@@ -9,12 +9,12 @@ import (
 	"gotest.tools/v3/assert"
 
 	"cosmossdk.io/math"
+	banktestutil "cosmossdk.io/x/bank/testutil"
+	"cosmossdk.io/x/staking"
+	"cosmossdk.io/x/staking/types"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/testutil"
-	"github.com/cosmos/cosmos-sdk/x/staking"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func bootstrapGenesisTest(t *testing.T, numAddrs int) (*fixture, []sdk.AccAddress) {
@@ -44,7 +44,7 @@ func TestInitGenesis(t *testing.T) {
 	}
 	assert.NilError(t, f.stakingKeeper.SetValidator(f.sdkCtx, bondedVal))
 
-	params, err := f.stakingKeeper.GetParams(f.sdkCtx)
+	params, err := f.stakingKeeper.Params.Get(f.sdkCtx)
 	assert.NilError(t, err)
 
 	validators, err := f.stakingKeeper.GetAllValidators(f.sdkCtx)
@@ -188,7 +188,7 @@ func TestInitGenesisLargeValidatorSet(t *testing.T) {
 	genesisValidators, err := f.stakingKeeper.GetAllValidators(f.sdkCtx)
 	assert.NilError(t, err)
 
-	params, err := f.stakingKeeper.GetParams(f.sdkCtx)
+	params, err := f.stakingKeeper.Params.Get(f.sdkCtx)
 	assert.NilError(t, err)
 	delegations := []types.Delegation{}
 	validators := make([]types.Validator, size)

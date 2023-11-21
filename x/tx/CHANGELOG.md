@@ -31,6 +31,26 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ## [Unreleased]
 
+## v0.12.0
+
+### Improvements
+
+* [#18309](https://github.com/cosmos/cosmos-sdk/pull/18309) Update encoder so that amino types default to msg type url.
+
+## v0.11.0
+
+### Improvements
+
+* [#17787](https://github.com/cosmos/cosmos-sdk/pull/17787) Drop tip support.
+
+## v0.10.0
+
+### Features
+
+* [#17681](https://github.com/cosmos/cosmos-sdk/pull/17681) Add encoder `DefineTypeEncoding` method for defining custom type encodings.
+* [#17600](https://github.com/cosmos/cosmos-sdk/pull/17600) Add encoder `DefineScalarEncoding` method for defining custom scalar encodings.
+* [#17600](https://github.com/cosmos/cosmos-sdk/pull/17600) Add indent option to encoder.
+
 ## v0.9.1
 
 ### Improvements

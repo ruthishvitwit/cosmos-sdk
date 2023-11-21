@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -9,14 +10,15 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
+	"cosmossdk.io/x/staking/types"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 type msgServer struct {
@@ -106,7 +108,7 @@ func (k msgServer) CreateValidator(ctx context.Context, msg *types.MsgCreateVali
 
 	commission := types.NewCommissionWithTime(
 		msg.Commission.Rate, msg.Commission.MaxRate,
-		msg.Commission.MaxChangeRate, sdkCtx.BlockHeader().Time,
+		msg.Commission.MaxChangeRate, sdkCtx.HeaderInfo().Time,
 	)
 
 	validator, err = validator.SetInitialCommission(commission)
@@ -302,6 +304,7 @@ func (k msgServer) Delegate(ctx context.Context, msg *types.MsgDelegate) (*types
 		sdk.NewEvent(
 			types.EventTypeDelegate,
 			sdk.NewAttribute(types.AttributeKeyValidator, msg.ValidatorAddress),
+			sdk.NewAttribute(types.AttributeKeyDelegator, msg.DelegatorAddress),
 			sdk.NewAttribute(sdk.AttributeKeyAmount, msg.Amount.String()),
 			sdk.NewAttribute(types.AttributeKeyNewShares, newShares.String()),
 		),
@@ -446,6 +449,7 @@ func (k msgServer) Undelegate(ctx context.Context, msg *types.MsgUndelegate) (*t
 		sdk.NewEvent(
 			types.EventTypeUnbond,
 			sdk.NewAttribute(types.AttributeKeyValidator, msg.ValidatorAddress),
+			sdk.NewAttribute(types.AttributeKeyDelegator, msg.DelegatorAddress),
 			sdk.NewAttribute(sdk.AttributeKeyAmount, undelegatedCoin.String()),
 			sdk.NewAttribute(types.AttributeKeyCompletionTime, completionTime.Format(time.RFC3339)),
 		),
@@ -541,7 +545,7 @@ func (k msgServer) CancelUnbondingDelegation(ctx context.Context, msg *types.Msg
 	}
 
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	if unbondEntry.CompletionTime.Before(sdkCtx.BlockTime()) {
+	if unbondEntry.CompletionTime.Before(sdkCtx.HeaderInfo().Time) {
 		return nil, sdkerrors.ErrInvalidRequest.Wrap("unbonding delegation is already processed")
 	}
 
@@ -596,9 +600,83 @@ func (k msgServer) UpdateParams(ctx context.Context, msg *types.MsgUpdateParams)
 	}
 
 	// store params
-	if err := k.SetParams(ctx, msg.Params); err != nil {
+	if err := k.Params.Set(ctx, msg.Params); err != nil {
 		return nil, err
 	}
 
 	return &types.MsgUpdateParamsResponse{}, nil
+}
+
+func (k msgServer) RotateConsPubKey(ctx context.Context, msg *types.MsgRotateConsPubKey) (res *types.MsgRotateConsPubKeyResponse, err error) {
+	cv := msg.NewPubkey.GetCachedValue()
+	pk, ok := cv.(cryptotypes.PubKey)
+	if !ok {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidType, "expecting cryptotypes.PubKey, got %T", cv)
+	}
+
+	// check cons key is already present in the key rotation history.
+	rotatedTo, err := k.RotatedConsKeyMapIndex.Get(ctx, pk.Address())
+	if err != nil && !errors.Is(err, collections.ErrNotFound) {
+		return nil, err
+	}
+
+	if rotatedTo != nil {
+		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidAddress,
+			"the new public key is already present in rotation history, please try with a different one")
+	}
+
+	newConsAddr := sdk.ConsAddress(pk.Address())
+
+	// checks if NewPubKey is not duplicated on ValidatorsByConsAddr
+	validator1, _ := k.Keeper.ValidatorByConsAddr(ctx, newConsAddr)
+	if validator1 != nil {
+		return nil, types.ErrConsensusPubKeyAlreadyUsedForValidator
+	}
+
+	valAddr, err := k.validatorAddressCodec.StringToBytes(msg.ValidatorAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	validator2, err := k.Keeper.GetValidator(ctx, valAddr)
+	if err != nil {
+		return nil, types.ErrNoValidatorFound
+	}
+
+	if status := validator2.GetStatus(); status != types.Bonded {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidType, "validator status is not bonded, got %s", status.String())
+	}
+
+	// Check if the validator is exceeding parameter MaxConsPubKeyRotations within the
+	// unbonding period by iterating ConsPubKeyRotationHistory.
+	err = k.exceedsMaxRotations(ctx, valAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the signing account has enough balance to pay KeyRotationFee
+	// KeyRotationFees are sent to the community fund.
+	params, err := k.Params.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = k.Keeper.bankKeeper.SendCoinsFromAccountToModule(ctx, sdk.AccAddress(valAddr), types.DistributionModuleName, sdk.NewCoins(params.KeyRotationFee))
+	if err != nil {
+		return nil, err
+	}
+
+	// Add ConsPubKeyRotationHistory for tracking rotation
+	err = k.setConsPubKeyRotationHistory(
+		ctx,
+		valAddr,
+		validator2.ConsensusPubkey,
+		msg.NewPubkey,
+		params.KeyRotationFee,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

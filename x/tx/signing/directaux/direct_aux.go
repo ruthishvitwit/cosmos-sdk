@@ -100,7 +100,8 @@ func (h SignModeHandler) GetSignBytes(
 		ChainId:       signerData.ChainID,
 		AccountNumber: signerData.AccountNumber,
 		Sequence:      signerData.Sequence,
-		Tip:           txData.AuthInfo.Tip,
 	}
-	return proto.Marshal(signDocDirectAux)
+
+	protov2MarshalOpts := proto.MarshalOptions{Deterministic: true}
+	return protov2MarshalOpts.Marshal(signDocDirectAux)
 }

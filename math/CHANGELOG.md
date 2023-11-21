@@ -34,7 +34,44 @@ Ref: https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.j
 
 # Changelog
 
-## [math/v1.1.0](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.1.0) - 2023-08-18
+## [Unreleased]
+
+### Features
+
+* [#18421](https://github.com/cosmos/cosmos-sdk/pull/18421) Add mutative api for `LegacyDec.BigInt()`.
+
+### Bug Fixes
+
+* [#18519](https://github.com/cosmos/cosmos-sdk/pull/18519) Prevent Overflow in `Dec.Ceil()`.
+
+## [math/v1.2.0](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.2.0) - 2023-11-07
+
+### Features
+
+* [#18247](https://github.com/cosmos/cosmos-sdk/pull/18247) Add mutative api for `Uint.BigInt()`.
+* [#17803](https://github.com/cosmos/cosmos-sdk/pull/17803) Add mutative api for `Int.BigInt()`.
+* [#18030](https://github.com/cosmos/cosmos-sdk/pull/18030) Add mutative api for `NewIntFromBigInt`.
+
+### Bug Fixes
+
+* [#18228](https://github.com/cosmos/cosmos-sdk/pull/18228) Fix panic when calling `BigInt()` on an uninitialized `Uint`.
+* [#18214](https://github.com/cosmos/cosmos-sdk/pull/18214) Ensure that modifying the argument to `NewUIntFromBigInt` doesn't mutate the returned value.
+* [#18211](https://github.com/cosmos/cosmos-sdk/pull/18211) RelativePow now returns 1 when 0^0, before it was returning the scale factor.
+* [#17725](https://github.com/cosmos/cosmos-sdk/pull/17725) Fix state break in ApproxRoot. This has been present since math/v1.0.1. It changed the rounding behavior at precision end in an intermediary division from banker's to truncation. The truncation occurs from binary right shift in the case of square roots. The change is now reverted back to banker's rounding universally for any root.
+
+## [math/v1.1.2](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.1.2) - 2023-08-21
+
+### Bug Fixes
+
+* [#17489](https://github.com/cosmos/cosmos-sdk/pull/17489) Revert [#16263](https://github.com/cosmos/cosmos-sdk/pull/16263).
+
+## [math/v1.1.1](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.1.1) - 2023-08-21
+
+### Bug Fixes
+
+* [#17480](https://github.com/cosmos/cosmos-sdk/pull/17480) Fix panic when calling `.Size()` on a nil `math.Int` value.
+
+## [math/v1.1.0](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.1.0) - 2023-08-19
 
 ### Features
 
@@ -48,7 +85,7 @@ Ref: https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.j
 ### Bug Fixes
 
 * [#17352](https://github.com/cosmos/cosmos-sdk/pull/17352) Ensure that modifying the argument to `NewIntFromBigInt` doesn't mutate the returned value.
-* [#16266](https://github.com/cosmos/cosmos-sdk/pull/16266) fix: legacy dec power mut zero exponent precision.
+* [#16266](https://github.com/cosmos/cosmos-sdk/pull/16266) Fix legacy dec power mut zero exponent precision.
 
 ## [math/v1.0.1](https://github.com/cosmos/cosmos-sdk/releases/tag/math/v1.0.1) - 2023-05-15
 

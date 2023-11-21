@@ -5,14 +5,15 @@ import (
 
 	"github.com/golang/mock/gomock"
 
+	"cosmossdk.io/core/header"
 	sdkmath "cosmossdk.io/math"
+	authtypes "cosmossdk.io/x/auth/types"
+	"cosmossdk.io/x/authz"
+	banktypes "cosmossdk.io/x/bank/types"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/authz"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 func (suite *TestSuite) createAccounts(accs int) []sdk.AccAddress {
@@ -23,9 +24,9 @@ func (suite *TestSuite) createAccounts(accs int) []sdk.AccAddress {
 }
 
 func (suite *TestSuite) TestGrant() {
-	ctx := suite.ctx.WithBlockTime(time.Now())
+	ctx := suite.ctx.WithHeaderInfo(header.Info{Time: time.Now()})
 	addrs := suite.createAccounts(2)
-	curBlockTime := ctx.BlockTime()
+	curBlockTime := ctx.HeaderInfo().Time
 
 	suite.accountKeeper.EXPECT().AddressCodec().Return(address.NewBech32Codec("cosmos")).AnyTimes()
 

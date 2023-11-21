@@ -13,9 +13,22 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"cosmossdk.io/collections"
+	"cosmossdk.io/core/header"
 	"cosmossdk.io/depinject"
 	sdklog "cosmossdk.io/log"
 	"cosmossdk.io/math"
+	authkeeper "cosmossdk.io/x/auth/keeper"
+	authtypes "cosmossdk.io/x/auth/types"
+	bankkeeper "cosmossdk.io/x/bank/keeper"
+	banktestutil "cosmossdk.io/x/bank/testutil"
+	distrkeeper "cosmossdk.io/x/distribution/keeper"
+	distrtypes "cosmossdk.io/x/distribution/types"
+	mintkeeper "cosmossdk.io/x/mint/keeper"
+	minttypes "cosmossdk.io/x/mint/types"
+	stakingkeeper "cosmossdk.io/x/staking/keeper"
+	"cosmossdk.io/x/staking/simulation"
+	"cosmossdk.io/x/staking/testutil"
+	"cosmossdk.io/x/staking/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -26,18 +39,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
-	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
-	banktestutil "github.com/cosmos/cosmos-sdk/x/bank/testutil"
-	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
-	distrtypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
-	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	"github.com/cosmos/cosmos-sdk/x/staking/simulation"
-	"github.com/cosmos/cosmos-sdk/x/staking/testutil"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 type SimTestSuite struct {
@@ -188,7 +189,7 @@ func (s *SimTestSuite) TestSimulateMsgCreateValidator() {
 func (s *SimTestSuite) TestSimulateMsgCancelUnbondingDelegation() {
 	require := s.Require()
 	blockTime := time.Now().UTC()
-	ctx := s.ctx.WithBlockTime(blockTime)
+	ctx := s.ctx.WithHeaderInfo(header.Info{Time: blockTime})
 
 	// setup accounts[1] as validator
 	validator0 := s.getTestingValidator0(ctx)
@@ -233,7 +234,7 @@ func (s *SimTestSuite) TestSimulateMsgCancelUnbondingDelegation() {
 func (s *SimTestSuite) TestSimulateMsgEditValidator() {
 	require := s.Require()
 	blockTime := time.Now().UTC()
-	ctx := s.ctx.WithBlockTime(blockTime)
+	ctx := s.ctx.WithHeaderInfo(header.Info{Time: blockTime})
 
 	// setup accounts[0] as validator
 	_ = s.getTestingValidator0(ctx)
@@ -259,7 +260,7 @@ func (s *SimTestSuite) TestSimulateMsgEditValidator() {
 func (s *SimTestSuite) TestSimulateMsgDelegate() {
 	require := s.Require()
 	blockTime := time.Now().UTC()
-	ctx := s.ctx.WithBlockTime(blockTime)
+	ctx := s.ctx.WithHeaderInfo(header.Info{Time: blockTime})
 
 	// execute operation
 	op := simulation.SimulateMsgDelegate(s.txConfig, s.accountKeeper, s.bankKeeper, s.stakingKeeper)
@@ -282,7 +283,7 @@ func (s *SimTestSuite) TestSimulateMsgDelegate() {
 func (s *SimTestSuite) TestSimulateMsgUndelegate() {
 	require := s.Require()
 	blockTime := time.Now().UTC()
-	ctx := s.ctx.WithBlockTime(blockTime)
+	ctx := s.ctx.WithHeaderInfo(header.Info{Time: blockTime})
 
 	// setup accounts[1] as validator
 	validator0 := s.getTestingValidator0(ctx)
@@ -323,7 +324,7 @@ func (s *SimTestSuite) TestSimulateMsgUndelegate() {
 func (s *SimTestSuite) TestSimulateMsgBeginRedelegate() {
 	require := s.Require()
 	blockTime := time.Now().UTC()
-	ctx := s.ctx.WithBlockTime(blockTime)
+	ctx := s.ctx.WithHeaderInfo(header.Info{Time: blockTime})
 
 	// setup accounts[1] as validator0 and accounts[2] as validator1
 	validator0 := s.getTestingValidator0(ctx)

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/suite"
 
 	"cosmossdk.io/collections"
+	"cosmossdk.io/core/header"
 	storetypes "cosmossdk.io/store/types"
 	"cosmossdk.io/x/evidence"
 	"cosmossdk.io/x/evidence/exported"
@@ -77,7 +77,6 @@ type KeeperTestSuite struct {
 	accountKeeper  *evidencetestutil.MockAccountKeeper
 	slashingKeeper *evidencetestutil.MockSlashingKeeper
 	stakingKeeper  *evidencetestutil.MockStakingKeeper
-	blockInfo      *evidencetestutil.MockCometinfo
 	queryClient    types.QueryClient
 	encCfg         moduletestutil.TestEncodingConfig
 	msgServer      types.MsgServer
@@ -97,7 +96,6 @@ func (suite *KeeperTestSuite) SetupTest() {
 	slashingKeeper := evidencetestutil.NewMockSlashingKeeper(ctrl)
 	accountKeeper := evidencetestutil.NewMockAccountKeeper(ctrl)
 	bankKeeper := evidencetestutil.NewMockBankKeeper(ctrl)
-	suite.blockInfo = &evidencetestutil.MockCometinfo{}
 
 	evidenceKeeper := keeper.NewKeeper(
 		encCfg.Codec,
@@ -105,7 +103,6 @@ func (suite *KeeperTestSuite) SetupTest() {
 		stakingKeeper,
 		slashingKeeper,
 		address.NewBech32Codec("cosmos"),
-		&evidencetestutil.MockCometinfo{},
 	)
 
 	suite.stakingKeeper = stakingKeeper
@@ -116,7 +113,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	router = router.AddRoute(types.RouteEquivocation, testEquivocationHandler(evidenceKeeper))
 	evidenceKeeper.SetRouter(router)
 
-	suite.ctx = testCtx.Ctx.WithBlockHeader(cmtproto.Header{Height: 1})
+	suite.ctx = testCtx.Ctx.WithHeaderInfo(header.Info{Height: 1})
 	suite.encCfg = moduletestutil.MakeTestEncodingConfig(evidence.AppModuleBasic{})
 
 	suite.accountKeeper = accountKeeper

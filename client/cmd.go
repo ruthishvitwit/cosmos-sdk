@@ -8,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/exp/slices"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -251,7 +252,7 @@ func readTxCommandFlags(clientCtx Context, flagSet *pflag.FlagSet) (Context, err
 		payer, _ := flagSet.GetString(flags.FlagFeePayer)
 
 		if payer != "" {
-			payerAcc, err := sdk.AccAddressFromBech32(payer)
+			payerAcc, err := clientCtx.AddressCodec.StringToBytes(payer)
 			if err != nil {
 				return clientCtx, err
 			}
@@ -264,7 +265,7 @@ func readTxCommandFlags(clientCtx Context, flagSet *pflag.FlagSet) (Context, err
 		granter, _ := flagSet.GetString(flags.FlagFeeGranter)
 
 		if granter != "" {
-			granterAcc, err := sdk.AccAddressFromBech32(granter)
+			granterAcc, err := clientCtx.AddressCodec.StringToBytes(granter)
 			if err != nil {
 				return clientCtx, err
 			}
@@ -283,14 +284,7 @@ func readTxCommandFlags(clientCtx Context, flagSet *pflag.FlagSet) (Context, err
 		clientCtx = clientCtx.WithFrom(from).WithFromAddress(fromAddr).WithFromName(fromName)
 
 		if keyType == keyring.TypeLedger && clientCtx.SignModeStr == flags.SignModeTextual {
-			textualEnabled := false
-			for _, v := range clientCtx.TxConfig.SignModeHandler().SupportedModes() {
-				if v == signingv1beta1.SignMode_SIGN_MODE_TEXTUAL {
-					textualEnabled = true
-					break
-				}
-			}
-			if !textualEnabled {
+			if !slices.Contains(clientCtx.TxConfig.SignModeHandler().SupportedModes(), signingv1beta1.SignMode_SIGN_MODE_TEXTUAL) {
 				return clientCtx, fmt.Errorf("SIGN_MODE_TEXTUAL is not available")
 			}
 		}
@@ -311,14 +305,12 @@ func readTxCommandFlags(clientCtx Context, flagSet *pflag.FlagSet) (Context, err
 		isAux, _ := flagSet.GetBool(flags.FlagAux)
 		clientCtx = clientCtx.WithAux(isAux)
 		if isAux {
-			// If the user didn't explicitly set an --output flag, use JSON by
-			// default.
+			// If the user didn't explicitly set an --output flag, use JSON by default.
 			if clientCtx.OutputFormat == "" || !flagSet.Changed(flags.FlagOutput) {
 				clientCtx = clientCtx.WithOutputFormat(flags.OutputFormatJSON)
 			}
 
-			// If the user didn't explicitly set a --sign-mode flag, use
-			// DIRECT_AUX by default.
+			// If the user didn't explicitly set a --sign-mode flag, use DIRECT_AUX by default.
 			if clientCtx.SignModeStr == "" || !flagSet.Changed(flags.FlagSignMode) {
 				clientCtx = clientCtx.WithSignModeStr(flags.SignModeDirectAux)
 			}

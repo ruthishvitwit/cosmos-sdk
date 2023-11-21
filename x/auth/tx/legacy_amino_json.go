@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/x/auth/migrations/legacytx"
+	"cosmossdk.io/x/auth/signing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 const aminoNonCriticalFieldsError = "protobuf transaction contains unknown non-critical fields. This is a transaction malleability issue and SIGN_MODE_LEGACY_AMINO_JSON cannot be used."
@@ -63,20 +63,6 @@ func (s signModeLegacyAminoJSONHandler) GetSignBytes(mode signingtypes.SignMode,
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "got empty address in %s handler", signingtypes.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 	}
 
-	tip := protoTx.GetTip()
-	isTipper := tip != nil && tip.Tipper == addr
-
-	// We set a convention that if the tipper signs with LEGACY_AMINO_JSON, then
-	// they sign over empty fees and 0 gas.
-	if isTipper {
-		return legacytx.StdSignBytes(
-			data.ChainID, data.AccountNumber, data.Sequence, protoTx.GetTimeoutHeight(),
-			// The tipper signs over 0 fee and 0 gas, no feepayer, no feegranter by convention.
-			legacytx.StdFee{},
-			tx.GetMsgs(), protoTx.GetMemo(), tip,
-		), nil
-	}
-
 	return legacytx.StdSignBytes(
 		data.ChainID, data.AccountNumber, data.Sequence, protoTx.GetTimeoutHeight(),
 		legacytx.StdFee{
@@ -85,6 +71,6 @@ func (s signModeLegacyAminoJSONHandler) GetSignBytes(mode signingtypes.SignMode,
 			Payer:   protoTx.tx.AuthInfo.Fee.Payer,
 			Granter: protoTx.tx.AuthInfo.Fee.Granter,
 		},
-		tx.GetMsgs(), protoTx.GetMemo(), tip,
+		tx.GetMsgs(), protoTx.GetMemo(),
 	), nil
 }

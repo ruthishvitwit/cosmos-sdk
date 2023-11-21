@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,10 +13,10 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	legacybech32 "github.com/cosmos/cosmos-sdk/types/bech32/legacybech32" //nolint:staticcheck // we do old keys, they're keys after all.
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/version"
@@ -34,6 +35,7 @@ func Cmd() *cobra.Command {
 		RunE:  client.ValidateCmd,
 	}
 
+	cmd.AddCommand(CodecCmd())
 	cmd.AddCommand(PubkeyCmd())
 	cmd.AddCommand(PubkeyRawCmd())
 	cmd.AddCommand(AddrCmd())
@@ -41,6 +43,61 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(PrefixesCmd())
 
 	return cmd
+}
+
+// CodecCmd creates and returns a new codec debug cmd.
+func CodecCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "codec",
+		Short: "Tool for helping with debugging your application codec",
+		RunE:  client.ValidateCmd,
+	}
+
+	cmd.AddCommand(getCodecInterfaces())
+	cmd.AddCommand(getCodecInterfaceImpls())
+
+	return cmd
+}
+
+// getCodecInterfaces creates and returns a new cmd used for listing all registered interfaces on the application codec.
+func getCodecInterfaces() *cobra.Command {
+	return &cobra.Command{
+		Use:     "list-interfaces",
+		Short:   "List all registered interface type URLs",
+		Long:    "List all registered interface type URLs using the application codec",
+		Example: fmt.Sprintf("%s debug codec list-interfaces", version.AppName),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+			iFaces := clientCtx.Codec.InterfaceRegistry().ListAllInterfaces()
+
+			slices.Sort(iFaces)
+			for _, iFace := range iFaces {
+				cmd.Println(iFace)
+			}
+			return nil
+		},
+	}
+}
+
+// getCodecInterfaceImpls creates and returns a new cmd used for listing all registered implemenations of a given interface on the application codec.
+func getCodecInterfaceImpls() *cobra.Command {
+	return &cobra.Command{
+		Use:     "list-implementations [interface]",
+		Short:   "List the registered type URLs for the provided interface",
+		Long:    "List the registered type URLs that can be used for the provided interface name using the application codec",
+		Example: fmt.Sprintf("%s debug codec list-implementations cosmos.crypto.PubKey", version.AppName),
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx := client.GetClientContextFromCmd(cmd)
+			impls := clientCtx.Codec.InterfaceRegistry().ListImplementations(args[0])
+
+			slices.Sort(impls)
+			for _, imp := range impls {
+				cmd.Println(imp)
+			}
+			return nil
+		},
+	}
 }
 
 // getPubKeyFromString decodes SDK PubKey using JSON marshaler.
@@ -52,14 +109,11 @@ func getPubKeyFromString(ctx client.Context, pkstr string) (cryptotypes.PubKey, 
 
 func PubkeyCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "pubkey [pubkey]",
-		Short: "Decode a pubkey from proto JSON",
-		Long: fmt.Sprintf(`Decode a pubkey from proto JSON and display it's address.
-
-Example:
-$ %s debug pubkey '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"AurroA7jvfPd1AadmmOvWM2rJSwipXfRf8yD6pLbA2DJ"}'
-			`, version.AppName),
-		Args: cobra.ExactArgs(1),
+		Use:     "pubkey [pubkey]",
+		Short:   "Decode a pubkey from proto JSON",
+		Long:    "Decode a pubkey from proto JSON and display it's address.",
+		Example: fmt.Sprintf(`%s debug pubkey '{"@type":"/cosmos.crypto.secp256k1.PubKey","key":"AurroA7jvfPd1AadmmOvWM2rJSwipXfRf8yD6pLbA2DJ"}'`, version.AppName),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx := client.GetClientContextFromCmd(cmd)
 			pk, err := getPubKeyFromString(clientCtx, args[0])
@@ -129,10 +183,10 @@ func PubkeyRawCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pubkey-raw [pubkey] -t [{ed25519, secp256k1}]",
 		Short: "Decode a ED25519 or secp256k1 pubkey from hex, base64, or bech32",
-		Long: fmt.Sprintf(`Decode a pubkey from hex, base64, or bech32.
-Example:
-$ %s debug pubkey-raw TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBieSB0aGlz
-$ %s debug pubkey-raw cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg
+		Long:  "Decode a pubkey from hex, base64, or bech32.",
+		Example: fmt.Sprintf(`
+%s debug pubkey-raw TWFuIGlzIGRpc3Rpbmd1aXNoZWQsIG5vdCBvbmx5IGJ5IGhpcyByZWFzb24sIGJ1dCBieSB0aGlz
+%s debug pubkey-raw cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg
 			`, version.AppName, version.AppName),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -193,38 +247,39 @@ $ %s debug pubkey-raw cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg
 
 func AddrCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "addr [address]",
-		Short: "Convert an address between hex and bech32",
-		Long: fmt.Sprintf(`Convert an address between hex encoding and bech32.
-
-Example:
-$ %s debug addr cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg
-			`, version.AppName),
-		Args: cobra.ExactArgs(1),
+		Use:     "addr [address]",
+		Short:   "Convert an address between hex and bech32",
+		Example: fmt.Sprintf("%s debug addr cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg", version.AppName),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			addrString := args[0]
-			var addr []byte
+			clientCtx := client.GetClientContextFromCmd(cmd)
 
+			addrString := args[0]
 			// try hex, then bech32
-			var err error
+			var (
+				addr []byte
+				err  error
+			)
 			addr, err = hex.DecodeString(addrString)
 			if err != nil {
 				var err2 error
-				addr, err2 = sdk.AccAddressFromBech32(addrString)
+				addr, err2 = clientCtx.AddressCodec.StringToBytes(addrString)
 				if err2 != nil {
 					var err3 error
-					addr, err3 = sdk.ValAddressFromBech32(addrString)
-
+					addr, err3 = clientCtx.ValidatorAddressCodec.StringToBytes(addrString)
 					if err3 != nil {
-						return fmt.Errorf("expected hex or bech32. Got errors: hex: %v, bech32 acc: %v, bech32 val: %v", err, err2, err3)
+						return fmt.Errorf("expected hex or bech32. Got errors: hex: %w, bech32 acc: %w, bech32 val: %w", err, err2, err3)
 					}
 				}
 			}
 
+			acc, _ := clientCtx.AddressCodec.BytesToString(addr)
+			val, _ := clientCtx.ValidatorAddressCodec.BytesToString(addr)
+
 			cmd.Println("Address:", addr)
 			cmd.Printf("Address (hex): %X\n", addr)
-			cmd.Printf("Bech32 Acc: %s\n", sdk.AccAddress(addr))
-			cmd.Printf("Bech32 Val: %s\n", sdk.ValAddress(addr))
+			cmd.Printf("Bech32 Acc: %s\n", acc)
+			cmd.Printf("Bech32 Val: %s\n", val)
 			return nil
 		},
 	}
@@ -232,14 +287,11 @@ $ %s debug addr cosmos1e0jnq2sun3dzjh8p2xq95kk0expwmd7shwjpfg
 
 func RawBytesCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "raw-bytes [raw-bytes]",
-		Short: "Convert raw bytes output (eg. [10 21 13 255]) to hex",
-		Long: fmt.Sprintf(`Convert raw-bytes to hex.
-
-Example:
-$ %s debug raw-bytes [72 101 108 108 111 44 32 112 108 97 121 103 114 111 117 110 100]
-			`, version.AppName),
-		Args: cobra.ExactArgs(1),
+		Use:     "raw-bytes [raw-bytes]",
+		Short:   "Convert raw bytes output (eg. [10 21 13 255]) to hex",
+		Long:    "Convert raw-bytes to hex.",
+		Example: fmt.Sprintf("%s debug raw-bytes [72 101 108 108 111 44 32 112 108 97 121 103 114 111 117 110 100]", version.AppName),
+		Args:    cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			stringBytes := args[0]
 			stringBytes = strings.Trim(stringBytes, "[")
@@ -264,12 +316,24 @@ func PrefixesCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:     "prefixes",
 		Short:   "List prefixes used for Human-Readable Part (HRP) in Bech32",
-		Long:    "List prefixes used in Bech32 addresses.",
 		Example: fmt.Sprintf("$ %s debug prefixes", version.AppName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Printf("Bech32 Acc: %s\n", sdk.GetConfig().GetBech32AccountAddrPrefix())
-			cmd.Printf("Bech32 Val: %s\n", sdk.GetConfig().GetBech32ValidatorAddrPrefix())
-			cmd.Printf("Bech32 Con: %s\n", sdk.GetConfig().GetBech32ConsensusAddrPrefix())
+			clientCtx := client.GetClientContextFromCmd(cmd)
+
+			acc, _ := clientCtx.AddressCodec.BytesToString([]byte{})
+			val, _ := clientCtx.ValidatorAddressCodec.BytesToString([]byte{})
+			cons, _ := clientCtx.ConsensusAddressCodec.BytesToString([]byte{})
+
+			checksumLen := 7
+			if _, ok := clientCtx.AddressCodec.(addresscodec.Bech32Codec); !ok {
+				cmd.Printf("%s uses custom address codec, this command may not work as expected.\n", version.AppName)
+				checksumLen = 0
+			}
+
+			cmd.Printf("Bech32 Acc: %s\n", acc[:len(acc)-checksumLen])
+			cmd.Printf("Bech32 Val: %s\n", val[:len(val)-checksumLen])
+			cmd.Printf("Bech32 Con: %s\n", cons[:len(cons)-checksumLen])
+
 			return nil
 		},
 	}

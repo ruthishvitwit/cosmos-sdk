@@ -6,13 +6,13 @@ import (
 	"github.com/hashicorp/go-metrics"
 
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/x/auth/keeper"
+	authtypes "cosmossdk.io/x/auth/types"
+	"cosmossdk.io/x/auth/vesting/types"
 
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 )
 
 type msgServer struct {
@@ -28,7 +28,7 @@ func NewMsgServerImpl(k keeper.AccountKeeper, bk types.BankKeeper) types.MsgServ
 
 var _ types.MsgServer = msgServer{}
 
-func (s msgServer) CreateVestingAccount(goCtx context.Context, msg *types.MsgCreateVestingAccount) (*types.MsgCreateVestingAccountResponse, error) {
+func (s msgServer) CreateVestingAccount(ctx context.Context, msg *types.MsgCreateVestingAccount) (*types.MsgCreateVestingAccountResponse, error) {
 	from, err := s.AccountKeeper.AddressCodec().StringToBytes(msg.FromAddress)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
@@ -43,11 +43,18 @@ func (s msgServer) CreateVestingAccount(goCtx context.Context, msg *types.MsgCre
 		return nil, err
 	}
 
-	if msg.EndTime <= 0 {
-		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "invalid end time")
+	if msg.StartTime < 0 {
+		return nil, sdkerrors.ErrInvalidRequest.Wrap("invalid start time")
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
+	if msg.EndTime <= 0 {
+		return nil, sdkerrors.ErrInvalidRequest.Wrap("invalid end time")
+	}
+
+	if msg.EndTime <= msg.StartTime {
+		return nil, sdkerrors.ErrInvalidRequest.Wrap("invalid start and end time (must be start < end)")
+	}
+
 	if err := s.BankKeeper.IsSendEnabledCoins(ctx, msg.Amount...); err != nil {
 		return nil, err
 	}
@@ -71,7 +78,12 @@ func (s msgServer) CreateVestingAccount(goCtx context.Context, msg *types.MsgCre
 	if msg.Delayed {
 		vestingAccount = types.NewDelayedVestingAccountRaw(baseVestingAccount)
 	} else {
-		vestingAccount = types.NewContinuousVestingAccountRaw(baseVestingAccount, ctx.BlockTime().Unix())
+		start := msg.StartTime
+		if msg.StartTime == 0 {
+			sdkctx := sdk.UnwrapSDKContext(ctx)
+			start = sdkctx.HeaderInfo().Time.Unix()
+		}
+		vestingAccount = types.NewContinuousVestingAccountRaw(baseVestingAccount, start)
 	}
 
 	s.AccountKeeper.SetAccount(ctx, vestingAccount)
@@ -97,7 +109,7 @@ func (s msgServer) CreateVestingAccount(goCtx context.Context, msg *types.MsgCre
 	return &types.MsgCreateVestingAccountResponse{}, nil
 }
 
-func (s msgServer) CreatePermanentLockedAccount(goCtx context.Context, msg *types.MsgCreatePermanentLockedAccount) (*types.MsgCreatePermanentLockedAccountResponse, error) {
+func (s msgServer) CreatePermanentLockedAccount(ctx context.Context, msg *types.MsgCreatePermanentLockedAccount) (*types.MsgCreatePermanentLockedAccountResponse, error) {
 	from, err := s.AccountKeeper.AddressCodec().StringToBytes(msg.FromAddress)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
@@ -112,7 +124,6 @@ func (s msgServer) CreatePermanentLockedAccount(goCtx context.Context, msg *type
 		return nil, err
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
 	if err := s.BankKeeper.IsSendEnabledCoins(ctx, msg.Amount...); err != nil {
 		return nil, err
 	}
@@ -155,7 +166,7 @@ func (s msgServer) CreatePermanentLockedAccount(goCtx context.Context, msg *type
 	return &types.MsgCreatePermanentLockedAccountResponse{}, nil
 }
 
-func (s msgServer) CreatePeriodicVestingAccount(goCtx context.Context, msg *types.MsgCreatePeriodicVestingAccount) (*types.MsgCreatePeriodicVestingAccountResponse, error) {
+func (s msgServer) CreatePeriodicVestingAccount(ctx context.Context, msg *types.MsgCreatePeriodicVestingAccount) (*types.MsgCreatePeriodicVestingAccountResponse, error) {
 	from, err := s.AccountKeeper.AddressCodec().StringToBytes(msg.FromAddress)
 	if err != nil {
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("invalid 'from' address: %s", err)
@@ -183,7 +194,6 @@ func (s msgServer) CreatePeriodicVestingAccount(goCtx context.Context, msg *type
 		totalCoins = totalCoins.Add(period.Amount...)
 	}
 
-	ctx := sdk.UnwrapSDKContext(goCtx)
 	if acc := s.AccountKeeper.GetAccount(ctx, to); acc != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "account %s already exists", msg.ToAddress)
 	}

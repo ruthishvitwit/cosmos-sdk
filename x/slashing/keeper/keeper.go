@@ -9,11 +9,11 @@ import (
 	storetypes "cosmossdk.io/core/store"
 	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
+	"cosmossdk.io/x/slashing/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/slashing/types"
 )
 
 // Keeper of the slashing store
@@ -25,11 +25,15 @@ type Keeper struct {
 
 	// the address capable of executing a MsgUpdateParams message. Typically, this
 	// should be the x/gov module account.
-	authority            string
-	Schema               collections.Schema
-	Params               collections.Item[types.Params]
+	authority string
+	Schema    collections.Schema
+	Params    collections.Item[types.Params]
+	// ValidatorSigningInfo key: ConsAddr | value: ValidatorSigningInfo
 	ValidatorSigningInfo collections.Map[sdk.ConsAddress, types.ValidatorSigningInfo]
-	AddrPubkeyRelation   collections.Map[[]byte, cryptotypes.PubKey]
+	// AddrPubkeyRelation key: address | value: PubKey
+	AddrPubkeyRelation collections.Map[[]byte, cryptotypes.PubKey]
+	// ValidatorMissedBlockBitmap key: ConsAddr | value: byte key for a validator's missed block bitmap chunk
+	ValidatorMissedBlockBitmap collections.Map[collections.Pair[[]byte, uint64], []byte]
 }
 
 // NewKeeper creates a slashing keeper
@@ -46,7 +50,7 @@ func NewKeeper(cdc codec.BinaryCodec, legacyAmino *codec.LegacyAmino, storeServi
 			sb,
 			types.ValidatorSigningInfoKeyPrefix,
 			"validator_signing_info",
-			sdk.LengthPrefixedAddressKey(sdk.ConsAddressKey), // nolint: staticcheck // sdk.LengthPrefixedAddressKey is needed to retain state compatibility
+			sdk.LengthPrefixedAddressKey(sdk.ConsAddressKey), //nolint: staticcheck // sdk.LengthPrefixedAddressKey is needed to retain state compatibility
 			codec.CollValue[types.ValidatorSigningInfo](cdc),
 		),
 		AddrPubkeyRelation: collections.NewMap(
@@ -55,6 +59,13 @@ func NewKeeper(cdc codec.BinaryCodec, legacyAmino *codec.LegacyAmino, storeServi
 			"addr_pubkey_relation",
 			sdk.LengthPrefixedBytesKey, // sdk.LengthPrefixedBytesKey is needed to retain state compatibility
 			codec.CollInterfaceValue[cryptotypes.PubKey](cdc),
+		),
+		ValidatorMissedBlockBitmap: collections.NewMap(
+			sb,
+			types.ValidatorMissedBlockBitmapKeyPrefix,
+			"validator_missed_block_bitmap",
+			collections.PairKeyCodec(sdk.LengthPrefixedBytesKey, collections.Uint64Key),
+			collections.BytesValue,
 		),
 	}
 
@@ -104,11 +115,16 @@ func (k Keeper) SlashWithInfractionReason(ctx context.Context, consAddr sdk.Cons
 		reasonAttr = sdk.NewAttribute(types.AttributeKeyReason, types.AttributeValueMissingSignature)
 	}
 
+	consStr, err := k.sk.ConsensusAddressCodec().BytesToString(consAddr)
+	if err != nil {
+		return err
+	}
+
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	sdkCtx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeSlash,
-			sdk.NewAttribute(types.AttributeKeyAddress, consAddr.String()),
+			sdk.NewAttribute(types.AttributeKeyAddress, consStr),
 			sdk.NewAttribute(types.AttributeKeyPower, fmt.Sprintf("%d", power)),
 			reasonAttr,
 			sdk.NewAttribute(types.AttributeKeyBurnedCoins, coinsBurned.String()),
@@ -125,10 +141,15 @@ func (k Keeper) Jail(ctx context.Context, consAddr sdk.ConsAddress) error {
 	if err != nil {
 		return err
 	}
+	consStr, err := k.sk.ConsensusAddressCodec().BytesToString(consAddr)
+	if err != nil {
+		return err
+	}
+
 	sdkCtx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			types.EventTypeSlash,
-			sdk.NewAttribute(types.AttributeKeyJailed, consAddr.String()),
+			sdk.NewAttribute(types.AttributeKeyJailed, consStr),
 		),
 	)
 	return nil

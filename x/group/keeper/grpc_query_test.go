@@ -10,6 +10,11 @@ import (
 
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
+	authtypes "cosmossdk.io/x/auth/types"
+	"cosmossdk.io/x/group"
+	groupkeeper "cosmossdk.io/x/group/keeper"
+	"cosmossdk.io/x/group/module"
+	grouptestutil "cosmossdk.io/x/group/testutil"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -19,11 +24,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/query"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"github.com/cosmos/cosmos-sdk/x/group"
-	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
-	"github.com/cosmos/cosmos-sdk/x/group/module"
-	grouptestutil "github.com/cosmos/cosmos-sdk/x/group/testutil"
 )
 
 type fixture struct {
@@ -119,6 +119,8 @@ func TestQueryGroupInfo(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := fixture.queryClient.GroupInfo(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {
@@ -157,6 +159,7 @@ func TestQueryGroupPolicyInfo(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := fixture.queryClient.GroupPolicyInfo(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {
@@ -197,6 +200,7 @@ func TestQueryGroupMembers(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := fixture.queryClient.GroupMembers(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {
@@ -242,6 +246,7 @@ func TestQueryGroupsByAdmin(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := fixture.queryClient.GroupsByAdmin(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {
@@ -282,6 +287,7 @@ func TestQueryGroupPoliciesByGroup(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := fixture.keeper.GroupPoliciesByGroup(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {
@@ -327,6 +333,7 @@ func TestQueryGroupPoliciesByAdmin(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			resp, err := fixture.keeper.GroupPoliciesByAdmin(fixture.ctx, &tc.req)
 			if tc.expErrMsg != "" {

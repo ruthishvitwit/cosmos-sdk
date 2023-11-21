@@ -7,13 +7,13 @@ import (
 	"gotest.tools/v3/assert"
 
 	"cosmossdk.io/math"
+	"cosmossdk.io/x/bank/testutil"
+	"cosmossdk.io/x/staking/keeper"
+	"cosmossdk.io/x/staking/types"
 
 	"github.com/cosmos/cosmos-sdk/codec/address"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/bank/testutil"
-	"github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func TestCancelUnbondingDelegation(t *testing.T) {
@@ -53,7 +53,7 @@ func TestCancelUnbondingDelegation(t *testing.T) {
 	unbondingAmount := sdk.NewInt64Coin(bondDenom, 5)
 	ubd := types.NewUnbondingDelegation(
 		delegatorAddr, validatorAddr, 10,
-		ctx.BlockTime().Add(time.Minute*10),
+		ctx.HeaderInfo().Time.Add(time.Minute*10),
 		unbondingAmount.Amount,
 		0,
 		address.NewBech32Codec("cosmosvaloper"), address.NewBech32Codec("cosmos"),
@@ -159,16 +159,18 @@ func TestCancelUnbondingDelegation(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			_, err := msgServer.CancelUnbondingDelegation(ctx, &testCase.req)
-			if testCase.exceptErr {
-				assert.ErrorContains(t, err, testCase.expErrMsg)
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := msgServer.CancelUnbondingDelegation(ctx, &tc.req)
+			if tc.exceptErr {
+				assert.ErrorContains(t, err, tc.expErrMsg)
 			} else {
 				assert.NilError(t, err)
 				balanceForNotBondedPool := f.bankKeeper.GetBalance(ctx, notBondedPool.GetAddress(), bondDenom)
-				assert.DeepEqual(t, balanceForNotBondedPool, moduleBalance.Sub(testCase.req.Amount))
-				moduleBalance = moduleBalance.Sub(testCase.req.Amount)
+				assert.DeepEqual(t, balanceForNotBondedPool, moduleBalance.Sub(tc.req.Amount))
+				moduleBalance = moduleBalance.Sub(tc.req.Amount)
 			}
 		})
 	}

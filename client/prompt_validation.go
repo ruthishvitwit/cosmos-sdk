@@ -28,7 +28,7 @@ func ValidatePromptURL(input string) error {
 }
 
 // ValidatePromptAddress validates that the input is a valid Bech32 address.
-func ValidatePromptAddress(input string) error {
+func ValidatePromptAddress(input string) error { // TODO(@julienrbrt) remove and add prompts in AutoCLI
 	_, err := sdk.AccAddressFromBech32(input)
 	if err == nil {
 		return nil
@@ -47,7 +47,7 @@ func ValidatePromptAddress(input string) error {
 	return fmt.Errorf("invalid address: %w", err)
 }
 
-// ValidatePromptYesNo validates that the input is valid sdk.COins
+// ValidatePromptCoins validates that the input contains valid sdk.Coins
 func ValidatePromptCoins(input string) error {
 	if _, err := sdk.ParseCoinsNormalized(input); err != nil {
 		return fmt.Errorf("invalid coins: %w", err)

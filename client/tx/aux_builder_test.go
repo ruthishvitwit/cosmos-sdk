@@ -14,17 +14,31 @@ import (
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	typestx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
-	"github.com/cosmos/cosmos-sdk/x/bank"
+	"github.com/cosmos/cosmos-sdk/x/counter"
+	countertypes "github.com/cosmos/cosmos-sdk/x/counter/types"
+)
+
+const (
+	memo          = "waboom"
+	timeoutHeight = uint64(5)
+)
+
+var (
+	_, pub1, addr1 = testdata.KeyTestPubAddr()
+	rawSig         = []byte("dummy")
+	msg1           = &countertypes.MsgIncreaseCounter{Signer: addr1.String(), Count: 1}
+
+	chainID = "test-chain"
 )
 
 func TestAuxTxBuilder(t *testing.T) {
-	bankModule := bank.AppModuleBasic{}
-	cdc := moduletestutil.MakeTestEncodingConfig(bankModule).Codec
+	counterModule := counter.AppModuleBasic{}
+	cdc := moduletestutil.MakeTestEncodingConfig(counterModule).Codec
 	reg := codectypes.NewInterfaceRegistry()
 
 	testdata.RegisterInterfaces(reg)
 	// required for test case: "GetAuxSignerData works for DIRECT_AUX"
-	bankModule.RegisterInterfaces(reg)
+	counterModule.RegisterInterfaces(reg)
 
 	var b tx.AuxTxBuilder
 
@@ -85,24 +99,10 @@ func TestAuxTxBuilder(t *testing.T) {
 			true, "got unknown sign mode SIGN_MODE_UNSPECIFIED",
 		},
 		{
-			"GetSignBytes tipper should not be nil (if tip is set)",
-			func() error {
-				require.NoError(t, b.SetMsgs(msg1))
-				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(&typestx.Tip{})
-				require.NoError(t, b.SetSignMode(signing.SignMode_SIGN_MODE_DIRECT_AUX))
-
-				_, err := b.GetSignBytes()
-				return err
-			},
-			true, "tipper cannot be empty",
-		},
-		{
 			"GetSignBytes works for DIRECT_AUX",
 			func() error {
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				require.NoError(t, b.SetSignMode(signing.SignMode_SIGN_MODE_DIRECT_AUX))
 
 				_, err := b.GetSignBytes()
@@ -115,7 +115,6 @@ func TestAuxTxBuilder(t *testing.T) {
 			func() error {
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				require.NoError(t, b.SetSignMode(signing.SignMode_SIGN_MODE_DIRECT_AUX))
 
 				_, err := b.GetSignBytes()
@@ -131,7 +130,6 @@ func TestAuxTxBuilder(t *testing.T) {
 			func() error {
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				b.SetAddress(addr1.String())
 				require.NoError(t, b.SetSignMode(signing.SignMode_SIGN_MODE_DIRECT_AUX))
 
@@ -153,7 +151,6 @@ func TestAuxTxBuilder(t *testing.T) {
 				b.SetChainID(chainID)
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				b.SetAddress(addr1.String())
 				err := b.SetSignMode(signing.SignMode_SIGN_MODE_DIRECT_AUX)
 				require.NoError(t, err)
@@ -176,7 +173,6 @@ func TestAuxTxBuilder(t *testing.T) {
 			func() error {
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				b.SetAddress(addr1.String())
 				err := b.SetSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 				require.NoError(t, err)
@@ -196,7 +192,6 @@ func TestAuxTxBuilder(t *testing.T) {
 				b.SetChainID(chainID)
 				require.NoError(t, b.SetMsgs(msg1))
 				require.NoError(t, b.SetPubKey(pub1))
-				b.SetTip(tip)
 				b.SetAddress(addr1.String())
 				err := b.SetSignMode(signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON)
 				require.NoError(t, err)
@@ -251,7 +246,6 @@ func checkCorrectData(t *testing.T, cdc codec.Codec, auxSignerData typestx.AuxSi
 	require.Equal(t, chainID, auxSignerData.SignDoc.ChainId)
 	require.Equal(t, msgAny, body.GetMessages()[0])
 	require.Equal(t, pkAny, auxSignerData.SignDoc.PublicKey)
-	require.Equal(t, tip, auxSignerData.SignDoc.Tip)
 	require.Equal(t, signMode, auxSignerData.Mode)
 	require.Equal(t, rawSig, auxSignerData.Sig)
 }

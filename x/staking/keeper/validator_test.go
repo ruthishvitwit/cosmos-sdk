@@ -6,12 +6,14 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/golang/mock/gomock"
 
+	"cosmossdk.io/collections"
+	"cosmossdk.io/core/header"
 	"cosmossdk.io/math"
+	stakingkeeper "cosmossdk.io/x/staking/keeper"
+	"cosmossdk.io/x/staking/testutil"
+	stakingtypes "cosmossdk.io/x/staking/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
-	"github.com/cosmos/cosmos-sdk/x/staking/testutil"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 func (s *KeeperTestSuite) applyValidatorSetUpdates(ctx sdk.Context, keeper *stakingkeeper.Keeper, expectedUpdatesLen int) []abci.ValidatorUpdate {
@@ -82,7 +84,7 @@ func (s *KeeperTestSuite) TestValidator() {
 	require.Equal(power, resPower)
 	require.NoError(keeper.DeleteLastValidatorPower(ctx, valAddr))
 	resPower, err = keeper.GetLastValidatorPower(ctx, valAddr)
-	require.NoError(err)
+	require.Error(err, collections.ErrNotFound)
 	require.Equal(int64(0), resPower)
 }
 
@@ -283,10 +285,10 @@ func (s *KeeperTestSuite) TestUpdateValidatorCommission() {
 	require := s.Require()
 
 	// Set MinCommissionRate to 0.05
-	params, err := keeper.GetParams(ctx)
+	params, err := keeper.Params.Get(ctx)
 	require.NoError(err)
 	params.MinCommissionRate = math.LegacyNewDecWithPrec(5, 2)
-	require.NoError(keeper.SetParams(ctx, params))
+	require.NoError(keeper.Params.Set(ctx, params))
 
 	commission1 := stakingtypes.NewCommissionWithTime(
 		math.LegacyNewDecWithPrec(1, 1), math.LegacyNewDecWithPrec(3, 1),
@@ -341,7 +343,7 @@ func (s *KeeperTestSuite) TestUpdateValidatorCommission() {
 			require.Equal(tc.newRate, val.Commission.Rate,
 				"expected new validator commission rate for test case #%d with rate: %s", i, tc.newRate,
 			)
-			require.Equal(ctx.BlockHeader().Time, val.Commission.UpdateTime,
+			require.Equal(ctx.HeaderInfo().Time, val.Commission.UpdateTime,
 				"expected new validator commission update time for test case #%d with rate: %s", i, tc.newRate,
 			)
 		}
@@ -414,12 +416,12 @@ func (s *KeeperTestSuite) TestUnbondingValidator() {
 	require.Equal(valAddr.String(), resVals[0])
 
 	// check unbonding mature validators
-	ctx = ctx.WithBlockHeight(endHeight).WithBlockTime(endTime)
+	ctx = ctx.WithBlockHeight(endHeight).WithHeaderInfo(header.Info{Time: endTime})
 	err = keeper.UnbondAllMatureValidators(ctx)
 	require.EqualError(err, "validator in the unbonding queue was not found: validator does not exist")
 
 	require.NoError(keeper.SetValidator(ctx, validator))
-	ctx = ctx.WithBlockHeight(endHeight).WithBlockTime(endTime)
+	ctx = ctx.WithBlockHeight(endHeight).WithHeaderInfo(header.Info{Time: endTime})
 
 	err = keeper.UnbondAllMatureValidators(ctx)
 	require.EqualError(err, "unexpected validator in unbonding queue; status was not unbonding")

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 
+	"cosmossdk.io/collections"
 	"cosmossdk.io/math"
+	"cosmossdk.io/x/staking/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // RegisterInvariants registers all staking invariants
@@ -72,12 +73,16 @@ func ModuleAccountInvariants(k *Keeper) sdk.Invariant {
 			panic(err)
 		}
 
-		err = k.IterateUnbondingDelegations(ctx, func(_ int64, ubd types.UnbondingDelegation) bool {
-			for _, entry := range ubd.Entries {
-				notBonded = notBonded.Add(entry.Balance)
-			}
-			return false
-		})
+		err = k.UnbondingDelegations.Walk(
+			ctx,
+			nil,
+			func(key collections.Pair[[]byte, []byte], ubd types.UnbondingDelegation) (stop bool, err error) {
+				for _, entry := range ubd.Entries {
+					notBonded = notBonded.Add(entry.Balance)
+				}
+				return false, nil
+			},
+		)
 		if err != nil {
 			panic(err)
 		}

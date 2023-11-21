@@ -75,7 +75,7 @@ if err := rootCmd.Execute(); err != nil {
 
 ### Keyring
 
-`autocli` supports a keyring for key name resolving and signing transactions. Providing a keyring is optional, but if you want to use the `autocli` generated commands to sign transactions, you must provide a keyring.
+`autocli` uses a keyring for key name resolving and signing transactions. Providing a keyring is optional, but if you want to use the `autocli` generated commands to sign transactions, you must provide a keyring.
 
 :::tip
 This provides a better UX as it allows to resolve key names directly from the keyring in all transactions and commands.
@@ -87,16 +87,23 @@ This provides a better UX as it allows to resolve key names directly from the ke
 
 :::
 
-The keyring to be provided to `client/v2` must match the `client/v2` keyring interface. The Cosmos SDK keyring and Hubl keyring both implement this interface.
+The keyring to be provided to `client/v2` must match the `client/v2` keyring interface.
 The keyring should be provided in the `appOptions` struct as follows, and can be gotten from the client context:
+
+:::tip
+The Cosmos SDK keyring and Hubl keyring both implement the `client/v2/autocli/keyring` interface, thanks to the following wrapper:
+
+```go
+keyring.NewAutoCLIKeyring(kb)
+```
+
+:::
 
 :::warning
 When using AutoCLI the keyring will only be created once and before any command flag parsing.
 :::
 
 ```go
-// Get the keyring from the client context
-keyring := ctx.Keyring
 // Set the keyring in the appOptions
 appOptions.Keyring = keyring
 
@@ -104,7 +111,17 @@ err := autoCliOpts.EnhanceRootCommand(rootCmd)
 ...
 ```
 
-## Module Wiring & Customization
+## Signing
+
+`autocli` supports signing transactions with the keyring.
+The [`cosmos.msg.v1.signer` protobuf annotation](https://github.com/cosmos/cosmos-sdk/blob/9dd34510e27376005e7e7ff3628eab9dbc8ad6dc/docs/build/building-modules/05-protobuf-annotations.md#L9) defines the signer field of the message.
+This field is automatically filled when using the `--from` flag or defining the signer as a positional argument.
+
+:::warning
+AutoCLI currently supports only one signer per transaction.
+:::
+
+## Module wiring & Customization
 
 The `AutoCLIOptions()` method on your module allows to specify custom commands, sub-commands or flags for each service, as it was a `cobra.Command` instance, within the `RpcCommandOptions` struct. Defining such options will customize the behavior of the `autocli` command generation, which by default generates a command for each method in your gRPC service.
 
@@ -119,6 +136,11 @@ The `AutoCLIOptions()` method on your module allows to specify custom commands, 
   },
 }
 ```
+
+:::tip
+AutoCLI can create a gov proposal of any tx by simply setting the `GovProposal` field to `true` in the `autocli.RpcCommandOptions` struct.
+Users can however use the `--no-proposal` flag to disable the proposal creation (which is useful if the authority isn't the gov module on a chain).
+:::
 
 ### Specifying Subcommands
 
@@ -184,7 +206,7 @@ It is possible to use `AutoCLI` for non module commands. The trick is still to i
 For example, here is how the SDK does it for `cometbft` gRPC commands:
 
 ```go reference
-https://github.com/cosmos/cosmos-sdk/blob/julien/autocli-comet/client/grpc/cmtservice/autocli.go#L52-L71
+https://github.com/cosmos/cosmos-sdk/blob/main/client/grpc/cmtservice/autocli.go#L52-L71
 ```
 
 ## Summary
